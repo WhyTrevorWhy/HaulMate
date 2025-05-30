@@ -26,13 +26,15 @@ import time
 navigation = importlib.import_module("Plugins.Map.navigation.navigation")
 planning = importlib.import_module("Plugins.Map.route.planning")
 driving = importlib.import_module("Plugins.Map.route.driving")
+prediction = importlib.import_module("Plugins.Map.route.prediction")
 im = importlib.import_module("Plugins.Map.utils.internal_map")
-oh = importlib.import_module("Plugins.Map.utils.offset_handler")  
+oh = importlib.import_module("Plugins.Map.utils.offset_handler")
 last_plan_hash = hash(open(planning.__file__).read())
 last_drive_hash = hash(open(driving.__file__).read())
 last_nav_hash = hash(open(navigation.__file__).read())
+last_pred_hash = hash(open(prediction.__file__).read())
 last_im_hash = hash(open(im.__file__).read())
-last_oh_hash = hash(open(oh.__file__, encoding="utf-8").read())  
+last_oh_hash = hash(open(oh.__file__, encoding="utf-8").read())
 
 updating_offset_config = False
 
@@ -139,7 +141,7 @@ class Plugin(ETS2LAPlugin):
         self.settings.downloaded_data = ""
 
     def CheckHashes(self):
-        global last_nav_hash, last_drive_hash, last_plan_hash, last_im_hash, last_oh_hash
+        global last_nav_hash, last_drive_hash, last_plan_hash, last_im_hash, last_oh_hash, last_pred_hash
         logging.info("Starting navigation module file monitor")
         while True:
             try:
@@ -147,7 +149,8 @@ class Plugin(ETS2LAPlugin):
                 new_drive_hash = hash(open(driving.__file__, encoding='utf-8').read())
                 new_plan_hash = hash(open(planning.__file__, encoding='utf-8').read())
                 new_im_hash = hash(open(im.__file__, encoding='utf-8').read())
-                new_oh_hash = hash(open(oh.__file__, encoding='utf-8').read())  
+                new_oh_hash = hash(open(oh.__file__, encoding='utf-8').read())
+                new_pred_hash = hash(open(prediction.__file__, encoding='utf-8').read())
                 if new_nav_hash != last_nav_hash:
                     last_nav_hash = new_nav_hash
                     logging.info("Navigation module changed, reloading...")
@@ -178,6 +181,11 @@ class Plugin(ETS2LAPlugin):
                     logging.info("Offset handler module changed, reloading...")
                     importlib.reload(oh)
                     logging.info("Successfully reloaded offset handler module")
+                if new_pred_hash != last_pred_hash:
+                    last_pred_hash = new_pred_hash
+                    logging.info("Prediction module changed, reloading...")
+                    importlib.reload(prediction)
+                    logging.info("Successfully reloaded prediction module")
             except Exception as e:
                 logging.error(f"Error monitoring modules: {e}")
             time.sleep(1)
@@ -308,6 +316,7 @@ class Plugin(ETS2LAPlugin):
                 
                 steering_start_time = time.perf_counter()
                 steering_value = driving.GetSteering()
+                prediction.GetPredictedPath()
 
                 if steering_value is not None:
                     steering_value = steering_value / 180
@@ -365,9 +374,11 @@ class Plugin(ETS2LAPlugin):
                     self.globals.tags.road_type = "normal"
 
                 self.globals.tags.route_information = [item.information_json() for item in data.route_plan]
+                self.globals.tags.predicted_path = [point.tuple() for point in data.prediction_points]
             else:
                 self.globals.tags.next_intersection_distance = 1
                 self.globals.tags.road_type = "none"
+                self.globals.tags.predicted_path = []
         except:
             pass
         external_data_time = time.perf_counter() - external_data_start_time
