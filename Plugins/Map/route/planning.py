@@ -41,9 +41,17 @@ def GetRoadsInFrontOfRoad(road: c.Road, include_self:bool = True) -> list[c.Road
     return roads
         
 def PrefabToRouteSection(prefab: c.Prefab, lane_index: int, invert: bool = False) -> rc.RouteSection:
+    """Create a RouteSection from a prefab ensuring the lane index is valid."""
     route_section = rc.RouteSection()
     route_item = rc.RouteItem()
     route_item.item = prefab
+
+    if lane_index < 0 or lane_index >= len(prefab.nav_routes):
+        logging.warning(
+            f"Invalid lane index {lane_index} for prefab {prefab.uid}, clamping"
+        )
+        lane_index = max(0, min(lane_index, len(prefab.nav_routes) - 1))
+
     route_item.lane_index = lane_index
     route_section.items = [route_item]
     route_section.invert = invert
@@ -59,6 +67,7 @@ def PrefabToRouteSection(prefab: c.Prefab, lane_index: int, invert: bool = False
     return route_section
 
 def RoadToRouteSection(road: c.Road, lane_index: int, target_lanes: list[int] = [], invert: bool = False) -> rc.RouteSection:
+    """Create a RouteSection from a road ensuring the lane index is valid."""
     route_section = rc.RouteSection()
     route_section.items = []
     
@@ -80,11 +89,16 @@ def RoadToRouteSection(road: c.Road, lane_index: int, target_lanes: list[int] = 
     for list_road in accepted_roads:
         route_item = rc.RouteItem()
         route_item.item = list_road
+        if lane_index < 0 or lane_index >= len(list_road.lanes):
+            logging.warning(
+                f"Invalid lane index {lane_index} for road {list_road.uid}, clamping"
+            )
+            lane_index = max(0, min(lane_index, len(list_road.lanes) - 1))
         route_item.lane_index = lane_index
         route_section.items.append(route_item)
     
     route_section.invert = invert
-    if (lane_index > len(route_section.items[0].item.lanes) - 1):
+    if lane_index < 0 or lane_index >= len(route_section.items[0].item.lanes):
         return None
     
     route_section.lane_index = lane_index
