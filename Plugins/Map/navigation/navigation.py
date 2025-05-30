@@ -121,6 +121,31 @@ def get_path_to_destination():
         data.navigation_plan = route
         nodes = [nav.node for nav in route]
         data.plugin.globals.tags.navigation_plan = nodes
+
+        # Build a list of lane points for the entire route
+        nav_points: list[c.Position] = []
+        last_point: c.Position | None = None
+        for nav in route:
+            if not nav.is_possible or nav.item is None:
+                continue
+            lane_index = nav.lanes[0] if len(nav.lanes) > 0 else 0
+            if type(nav.item) == c.Road:
+                points = nav.item.lanes[lane_index].points
+            elif type(nav.item) == c.Prefab:
+                points = nav.item.nav_routes[lane_index].points
+            else:
+                continue
+
+            if nav.direction == "backward":
+                points = list(reversed(points))
+
+            for point in points:
+                if last_point is None or point != last_point:
+                    nav_points.append(point)
+                    last_point = point
+
+        data.navigation_points = nav_points
+        data.plugin.globals.tags.navigation_points = [p.tuple() for p in nav_points]
         data.last_length = len(game_route)
-        
+
     return data.navigation_plan

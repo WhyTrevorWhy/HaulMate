@@ -106,6 +106,7 @@ class SettingsMenu(ETS2LASettingsMenu):
                                 Space(0)
                                 Description(f"Is steering: {self.get_value_from_data('calculate_steering')}")
                                 Description(f"Route points: {len(self.get_value_from_data('route_points'))}")
+                                Description(f"Prediction points: {len(self.get_value_from_data('prediction_points'))}")
                                 Description(f"Route plan elements: {len(self.get_value_from_data('route_plan'))}")
                                 Description(f"Routing mode: {settings.Get('Map', 'RoutingMode')}")
                                 Description(f"Navigation points: {len(self.get_value_from_data('navigation_points'))}")

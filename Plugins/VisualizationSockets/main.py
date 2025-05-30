@@ -430,6 +430,8 @@ class Plugin(ETS2LAPlugin):
     
     def steering(self, data):
         points = self.plugins.Map
+        prediction = self.globals.tags.predicted_path
+        prediction = self.globals.tags.merge(prediction)
         information = self.globals.tags.route_information
         information = self.globals.tags.merge(information)
         
@@ -439,9 +441,10 @@ class Plugin(ETS2LAPlugin):
         if not points:
             return {
                 "points": [],
+                "prediction": [],
                 "information": information
             }
-        
+
         send = {
             "points": [
                 {
@@ -449,6 +452,13 @@ class Plugin(ETS2LAPlugin):
                     "y": point[1],
                     "z": point[2]
                 } for point in points
+            ],
+            "prediction": [
+                {
+                    "x": point[0],
+                    "y": point[1],
+                    "z": point[2]
+                } for point in prediction
             ],
             "information": information # already a dictionary
         }

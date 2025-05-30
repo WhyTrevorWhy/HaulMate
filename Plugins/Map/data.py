@@ -71,6 +71,10 @@ route_plan: list[RouteSection] = []
 """The current route plan."""
 route_points: list[Position] = []
 """The current route points."""
+prediction_points: list[Position] = []
+"""Predicted points ahead of the truck."""
+navigation_points: list[Position] = []
+"""All lane points for the currently loaded navigation route."""
 navigation_plan: list = []
 """List of RouteNodes that will drive the truck to the destination."""
 last_length: int = 0
@@ -91,6 +95,8 @@ data_path = os.path.join(os.path.dirname(__file__), "data")
 # MARK: Options
 amount_of_points: int = 50
 """How many points will the map calculate ahead. More points = more overhead moving data."""
+prediction_point_count: int = 100
+"""How many points will be generated for the prediction path."""
 heavy_calculations_this_frame: int = -1
 """How many heavy calculations map has done this frame."""
 allowed_heavy_calculations: int = 500
