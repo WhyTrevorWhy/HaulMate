@@ -2,6 +2,7 @@ import Plugins.Map.utils.prefab_helpers as ph
 import Plugins.Map.navigation.classes as nc
 import Plugins.Map.utils.node_helpers as nh
 import Plugins.Map.utils.road_helpers as rh
+import Plugins.Map.utils.math_helpers as math_helpers
 import Plugins.Map.classes as c
 import Plugins.Map.data as data
 from typing import Literal
@@ -117,10 +118,33 @@ def get_path_to_destination():
                 pass
 
         success = [node.is_possible for node in route]
-        logging.warning(f"Successfully calculated lanes for {sum(success)} out of {len(success)} nodes ({sum(success) / len(success) * 100:.0f}%)")
+        logging.warning(
+            f"Successfully calculated lanes for {sum(success)} out of {len(success)} nodes ({sum(success) / len(success) * 100:.0f}%)")
         data.navigation_plan = route
         nodes = [nav.node for nav in route]
         data.plugin.globals.tags.navigation_plan = nodes
+
+        points: list[c.Position] = []
+        for nav_node in route:
+            item = nav_node.item
+            if item is None:
+                continue
+            lane = nav_node.lanes[0] if nav_node.lanes else 0
+            lane_points = []
+            if isinstance(item, c.Road):
+                if item.lanes:
+                    lane = max(0, min(lane, len(item.lanes) - 1))
+                    lane_points = item.lanes[lane].points
+            elif isinstance(item, c.Prefab):
+                if item.nav_routes:
+                    lane = max(0, min(lane, len(item.nav_routes) - 1))
+                    lane_points = item.nav_routes[lane].points
+            for p in lane_points:
+                if not points or math_helpers.DistanceBetweenPoints(p.tuple(), points[-1].tuple()) > 0.5:
+                    points.append(p)
+
+        data.navigation_points = points
+        data.plugin.globals.tags.navigation_points = [p.tuple() for p in points]
         data.last_length = len(game_route)
         
     return data.navigation_plan
