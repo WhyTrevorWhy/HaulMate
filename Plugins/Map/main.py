@@ -34,12 +34,14 @@ navigation = importlib.import_module("Plugins.Map.navigation.navigation")
 planning = importlib.import_module("Plugins.Map.route.planning")
 driving = importlib.import_module("Plugins.Map.route.driving")
 im = importlib.import_module("Plugins.Map.utils.internal_map")
-oh = importlib.import_module("Plugins.Map.utils.offset_handler")  
+oh = importlib.import_module("Plugins.Map.utils.offset_handler")
+prediction = importlib.import_module("Plugins.Map.prediction")
 last_plan_hash = hash(open(planning.__file__, encoding="utf-8").read())
 last_drive_hash = hash(open(driving.__file__).read())
 last_nav_hash = hash(open(navigation.__file__, encoding="utf-8").read())
 last_im_hash = hash(open(im.__file__).read())
-last_oh_hash = hash(open(oh.__file__, encoding="utf-8").read())  
+last_oh_hash = hash(open(oh.__file__, encoding="utf-8").read())
+last_pred_hash = hash(open(prediction.__file__, encoding="utf-8").read())
 
 UPDATING_OFFSET_CONFIG = False
 DEVELOPER_PRINTING = True
@@ -133,7 +135,7 @@ class Plugin(ETS2LAPlugin):
         return result   
 
     def CheckHashes(self):
-        global last_nav_hash, last_drive_hash, last_plan_hash, last_im_hash, last_oh_hash
+        global last_nav_hash, last_drive_hash, last_plan_hash, last_im_hash, last_oh_hash, last_pred_hash
         logging.info("Starting navigation module file monitor")
         while True:
             try:
@@ -141,7 +143,8 @@ class Plugin(ETS2LAPlugin):
                 new_drive_hash = hash(open(driving.__file__, encoding='utf-8').read())
                 new_plan_hash = hash(open(planning.__file__, encoding='utf-8').read())
                 new_im_hash = hash(open(im.__file__, encoding='utf-8').read())
-                new_oh_hash = hash(open(oh.__file__, encoding='utf-8').read())  
+                new_oh_hash = hash(open(oh.__file__, encoding='utf-8').read())
+                new_pred_hash = hash(open(prediction.__file__, encoding='utf-8').read())
                 if new_nav_hash != last_nav_hash:
                     last_nav_hash = new_nav_hash
                     logging.info("Navigation module changed, reloading...")
@@ -172,6 +175,12 @@ class Plugin(ETS2LAPlugin):
                     logging.info("Offset handler module changed, reloading...")
                     importlib.reload(oh)
                     logging.info("Successfully reloaded offset handler module")
+                if new_pred_hash != last_pred_hash:
+                    last_pred_hash = new_pred_hash
+                    logging.info("Prediction module changed, reloading...")
+                    importlib.reload(prediction)
+                    self.predictor = prediction.Predictor()
+                    logging.info("Successfully reloaded prediction module")
             except Exception as e:
                 logging.error(f"Error monitoring modules: {e}")
             time.sleep(1)
@@ -229,6 +238,7 @@ class Plugin(ETS2LAPlugin):
 
             # Start navigation file monitor
             threading.Thread(target=self.CheckHashes, daemon=True).start()
+            self.predictor = prediction.Predictor()
             logging.info("Map plugin initialized successfully")
             return True
         except Exception as e:
@@ -279,7 +289,8 @@ class Plugin(ETS2LAPlugin):
             return
         
         data_time = time.perf_counter() - data_start_time
-        
+
+        prediction_time = 0
         try:
             data_update_start_time = time.perf_counter()
             api_data = api.run()
@@ -319,6 +330,11 @@ class Plugin(ETS2LAPlugin):
             navigation_start_time = time.perf_counter()
             self.UpdateNavigation()
             navigation_time = time.perf_counter() - navigation_start_time
+
+            prediction_start_time = time.perf_counter()
+            prediction_data = self.predictor.update()
+            self.globals.tags.prediction = prediction_data.dict()
+            prediction_time = time.perf_counter() - prediction_start_time
 
             external_map_start_time = time.perf_counter()
             if data.external_data_changed:
@@ -384,6 +400,7 @@ class Plugin(ETS2LAPlugin):
                     print(f"- Steering time: {steering_time * 1000:.2f}ms")
                     print(f"- Internal map time: {internal_map_time * 1000:.2f}ms")
                     print(f"- Navigation time: {navigation_time * 1000:.2f}ms")
+                    print(f"- Prediction time: {prediction_time * 1000:.2f}ms")
                     print(f"- External map time: {external_map_time * 1000:.2f}ms")
                     print(f"- External data time: {external_data_time * 1000:.2f}ms")
                 except:
